@@ -49,8 +49,9 @@ if st.button("Generate AI Report", type="primary"):
         try:
             # Connect to Hugging Face
             client = InferenceClient(
-                model="Qwen/Qwen2.5-7B-Instruct",
-                token=st.secrets["HF_TOKEN"]
+    model="google/gemma-2-2b-it:featherless-ai",
+    token=st.secrets["HF_TOKEN"]
+)
             )
 
             # Create instructions for the AI
