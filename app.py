@@ -1,3 +1,4 @@
+
 import streamlit as st
 from huggingface_hub import InferenceClient
 
@@ -39,43 +40,37 @@ language = st.selectbox(
     ["English", "Urdu"]
 )
 
-# AI report generation
+# Generate AI report
 if st.button("Generate AI Report", type="primary"):
 
     if not observation.strip():
-        st.warning("Please enter a site observation first.")
+        st.warning("Please enter a site observation.")
 
     else:
         try:
-            # Connect to Hugging Face
             client = InferenceClient(
-    model="google/gemma-2-2b-it:featherless-ai",
-    token=st.secrets["HF_TOKEN"]
-)
+                model="google/gemma-2-2b-it:featherless-ai",
+                token=st.secrets["HF_TOKEN"]
             )
 
-            # Create instructions for the AI
             prompt = f"""
-            You are an assistant helping construction site engineers
-            prepare professional inspection reports.
+            You are an assistant helping construction site engineers.
 
             Issue category: {category}
             Site observation: {observation}
 
-            Generate a professional report in {language}.
+            Write a professional inspection report in {language}.
 
-            Include these headings:
+            Include:
             1. Site Observation
             2. Possible Concern
             3. Recommended Action
 
-            Use clear, professional language.
+            Use clear professional language.
             Do not invent measurements or facts.
-            Do not claim a structural defect is confirmed
-            without proper professional inspection.
+            Do not claim a defect is confirmed without inspection.
             """
 
-            # Generate the report
             with st.spinner("AI is preparing your report..."):
 
                 response = client.chat_completion(
@@ -91,13 +86,11 @@ if st.button("Generate AI Report", type="primary"):
 
                 report = response.choices[0].message.content
 
-            # Display the result
-            st.success("Your AI report has been generated!")
+            st.success("Report generated successfully!")
 
             st.write("### 📋 Generated Inspection Report")
             st.markdown(report)
 
-            # Download report
             st.download_button(
                 label="Download Report",
                 data=report,
@@ -106,5 +99,5 @@ if st.button("Generate AI Report", type="primary"):
             )
 
         except Exception as e:
-            st.error("Something went wrong while generating the report.")
-            st.write("Error details:", str(e))
+            st.error("Unable to generate the report.")
+            st.error(str(e))
