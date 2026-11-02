@@ -1,95 +1,113 @@
 
 import streamlit as st
-from huggingface_hub import InferenceClient
+import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-# Page configuration
+# Page settings
 st.set_page_config(
     page_title="SiteNote AI",
     page_icon="🏗️",
     layout="centered"
 )
 
-# Application heading
+# Load the Hugging Face model
+@st.cache_resource
+def load_model():
+    model_name = "google/flan-t5-small"
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+    return tokenizer, model
+
+
+# App heading
 st.title("🏗️ SiteNote AI")
-st.subheader("Smart Construction Site Report Generator")
+st.subheader("Construction Site Inspection Report Generator")
 
 st.write(
-    "Convert simple construction site observations "
-    "into professional inspection reports using AI."
+    "Enter your construction site observations and let AI "
+    "turn them into a professional inspection report."
 )
 
 st.divider()
 
-# User input
-st.write("### Enter Site Observation")
-
-observation = st.text_area(
-    "Describe the issue you observed:",
-    placeholder="Example: Cracks appeared on the wall near the window..."
-)
-
-# Category selection
+# User inputs
 category = st.selectbox(
-    "Select Issue Category",
-    ["Structural", "Finishing", "Electrical", "Plumbing", "Safety"]
+    "Select Inspection Category",
+    [
+        "Structural",
+        "Finishing",
+        "Electrical",
+        "Plumbing",
+        "Safety"
+    ]
 )
 
-# Language selection
 language = st.selectbox(
-    "Report Language",
+    "Select Report Language",
     ["English", "Urdu"]
 )
 
-# Generate AI report
-if st.button("Generate AI Report", type="primary"):
+observation = st.text_area(
+    "Describe your site observation",
+    placeholder="Example: Cracks were observed in the plaster near the ground-floor staircase.",
+    height=150
+)
+
+# Generate report
+if st.button("Generate Inspection Report", type="primary"):
 
     if not observation.strip():
-        st.warning("Please enter a site observation.")
+        st.warning("Please enter a site observation first.")
 
     else:
         try:
-            client = InferenceClient(
-                model="google/gemma-2-2b-it:featherless-ai",
-                token=st.secrets["HF_TOKEN"]
-            )
+            with st.spinner("Loading AI model and generating your report..."):
 
-            prompt = f"""
-            You are an assistant helping construction site engineers.
+                tokenizer, model = load_model()
 
-            Issue category: {category}
-            Site observation: {observation}
+                prompt = f"""
+                Write a professional construction site inspection report
+                in {language}.
 
-            Write a professional inspection report in {language}.
+                Inspection category: {category}
 
-            Include:
-            1. Site Observation
-            2. Possible Concern
-            3. Recommended Action
+                Site observation: {observation}
 
-            Use clear professional language.
-            Do not invent measurements or facts.
-            Do not claim a defect is confirmed without inspection.
-            """
+                Organize the report under these three headings:
+                1. Site Observation
+                2. Possible Concern
+                3. Recommended Action
 
-            with st.spinner("AI is preparing your report..."):
+                Use clear and professional language.
+                Do not invent measurements, facts, or site conditions.
+                Base the report only on the observation provided.
+                """
 
-                response = client.chat_completion(
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    max_tokens=500,
-                    temperature=0.4
+                inputs = tokenizer(
+                    prompt,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=512
                 )
 
-                report = response.choices[0].message.content
+                with torch.no_grad():
+                    outputs = model.generate(
+                        **inputs,
+                        max_new_tokens=180,
+                        num_beams=2
+                    )
+
+                report = tokenizer.decode(
+                    outputs[0],
+                    skip_special_tokens=True
+                )
 
             st.success("Report generated successfully!")
 
-            st.write("### 📋 Generated Inspection Report")
-            st.markdown(report)
+            st.subheader("Generated Inspection Report")
+            st.write(report)
 
             st.download_button(
                 label="Download Report",
@@ -99,5 +117,5 @@ if st.button("Generate AI Report", type="primary"):
             )
 
         except Exception as e:
-            st.error("Unable to generate the report.")
-            st.error(str(e))
+            st.error("Something went wrong while generating the report.")
+            st.write(str(e))
